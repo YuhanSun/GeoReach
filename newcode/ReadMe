@@ -1,0 +1,7 @@
+This new code folder is little bit different from original codes because in one time only one ratio of data is loaded.
+
+Hence offset is always number of vertices. 
+
+In fact, speed of accessing attributes are influenced by size of each node. So I use the codes to eliminate influence of node size.
+If I load data of all rations(from 20% to 80%), accessing speed will be slower. In fact, random, clustered, zipf data all attached
+to one node will also cause the same problem.
