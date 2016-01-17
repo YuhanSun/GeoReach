@@ -75,7 +75,8 @@ public class Experiment_9_27 {
 		}
 		else
 		{
-			String suffix = args[1];
+//			String suffix = args[1];
+			String suffix = "_clustered";
 			//String suffix = "_random";
 //			ArrayList<String> datasource_a = new ArrayList<String>();
 			//datasource_a.add("citeseerx");
@@ -89,6 +90,8 @@ public class Experiment_9_27 {
 //				String datasource = datasource_a.get(name_index);
 				String datasource = args[0];
 				String resultpath = "/home/yuhansun/Documents/Real_data/query_time_9_27"+suffix+"_full_multi.csv";
+//				String resultpath = "/home/yuhansun/Documents/Real_data/query_time_9_27"+"_random"+"_full_multi.csv";
+
 				OwnMethods.WriteFile(resultpath, true, datasource+"\n");
 				int pieces = 128;
 				{
