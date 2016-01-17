@@ -116,6 +116,7 @@ public class GeoReach_test
 		long start_id = 11+graph_size;
 		long end_id = 3+graph_size;
 		p_georeach.UpdateAddEdge(start_id, end_id);
+		p_georeach.UpdateDeleteEdge(start_id, end_id);
 //		Reconstruct_test();
 		/*Rectangle rect = p_georeach.GetRMBR(17585);
 		System.out.println(rect.min_x);

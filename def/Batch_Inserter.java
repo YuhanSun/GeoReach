@@ -1159,6 +1159,11 @@ public class Batch_Inserter {
 				String filesuffix = args[3];
 				p_batch.SetRMBR(datasource, ratio, filesuffix);
 			}
+			if(args[0].equals("LoadReachabilityIndex"))
+			{
+				String datasource = args[1];
+				Batch_Inserter.LoadReachabilityIndex(datasource);
+			}
 		}
 		catch(Exception e)
 		{

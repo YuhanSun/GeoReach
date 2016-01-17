@@ -492,7 +492,7 @@ public class GeoReach implements ReachabilityQuerySolver	{
 	}
 	
 	//used in UpdateAddEdge to recursively update changing of RMBR(the end_id must be changed if the function is called and jArr_end store end_id's location and RMBR in a jsonArray)
-	public void UpdateAddEdgeTraverse(long end_id, JsonArray jArr_end)
+	public void UpdateAddEdge_Traverse(long end_id, JsonArray jArr_end)
 	{
 		String query = null;
 		String result = null;
@@ -623,7 +623,7 @@ public class GeoReach implements ReachabilityQuerySolver	{
 				jArr_start.set(4, new JsonPrimitive(update_RMBR.max_x));
 				jArr_start.set(5, new JsonPrimitive(update_RMBR.max_y));
 				update_inmemory_time += System.currentTimeMillis() - start;
-				UpdateAddEdgeTraverse(start_id, jArr_start);			
+				UpdateAddEdge_Traverse(start_id, jArr_start);			
 			}
 		}
 	}
@@ -757,7 +757,7 @@ public class GeoReach implements ReachabilityQuerySolver	{
 			jArr_start.set(4, new JsonPrimitive(update_RMBR.max_x));
 			jArr_start.set(5, new JsonPrimitive(update_RMBR.max_y));
 			update_inmemory_time+=System.currentTimeMillis() - start;
-			UpdateAddEdgeTraverse(start_id, jArr_start);			
+			UpdateAddEdge_Traverse(start_id, jArr_start);			
 		}
 		return flag;
 	}
@@ -866,7 +866,7 @@ public class GeoReach implements ReachabilityQuerySolver	{
 				double ori_miny = j_start.get(1).getAsDouble();
 				double ori_maxx = j_start.get(2).getAsDouble();
 				double ori_maxy = j_start.get(3).getAsDouble();
-				if(Math.abs(update_RMBR.min_x-ori_minx)>0.00000001||Math.abs(update_RMBR.min_y-ori_miny)>0.00000001||Math.abs(update_RMBR.min_x-ori_maxx)>0.00000001||Math.abs(update_RMBR.min_x-ori_maxy)>0.00000001)
+				if(Math.abs(update_RMBR.min_x-ori_minx)>0.00000001||Math.abs(update_RMBR.min_y-ori_miny)>0.00000001||Math.abs(update_RMBR.max_x-ori_maxx)>0.00000001||Math.abs(update_RMBR.max_y-ori_maxy)>0.00000001)
 				{
 					update_inmemory_time += System.currentTimeMillis() - start;
 
@@ -896,11 +896,16 @@ public class GeoReach implements ReachabilityQuerySolver	{
 		start = System.currentTimeMillis();
 		query = String.format("match (n) where id(n) in [%d,%d] return n.%s, n.%s, n.%s, n.%s, n.%s, n.%s", start_id, end_id, longitude_property_name, latitude_property_name, RMBR_minx_name, RMBR_miny_name, RMBR_maxx_name, RMBR_maxy_name);
 		result = Neo4j_Graph_Store.Execute(resource, query);
+		update_neo4j_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
 		JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
 		
 		JsonArray jArr_start = jsonArr.get(0).getAsJsonObject().get("row").getAsJsonArray();
 		JsonArray jArr_end = jsonArr.get(1).getAsJsonObject().get("row").getAsJsonArray();
-			
+		update_inmemory_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
 		if(!jArr_start.get(2).isJsonNull())
 		{
 			boolean flag = false;//a flag to represent whether the start vertex will be influenced by the deletion
@@ -934,6 +939,9 @@ public class GeoReach implements ReachabilityQuerySolver	{
 				if(update_RMBR == null)
 				{
 					query = String.format("match (n) where id(n)=%d remove n.%s, n.%s, n.%s, n.%s", start_id, RMBR_minx_name, RMBR_miny_name, RMBR_maxx_name, RMBR_maxy_name);
+					start = System.currentTimeMillis();
+					result = Neo4j_Graph_Store.Execute(resource, query);
+					update_neo4j_time += System.currentTimeMillis() - start;
 					UpdateDeleteEdge_Traverse(start_id);
 				}
 				else
@@ -941,13 +949,13 @@ public class GeoReach implements ReachabilityQuerySolver	{
 					if(Math.abs(update_RMBR.min_x-minx)>0.00000001||Math.abs(update_RMBR.max_x-maxx)>0.00000001||Math.abs(update_RMBR.min_y-miny)>0.00000001||Math.abs(update_RMBR.max_y-maxy)>0.00000001)
 					{
 						query = String.format("match (n) where id(n)=%d set n.%s = %.8f, n.%s=%.8f, n.%s=%.8f, n.%s=%.8f", start_id, RMBR_minx_name, update_RMBR.min_x, RMBR_miny_name, update_RMBR.min_y, RMBR_maxx_name, update_RMBR.max_x, RMBR_maxy_name, update_RMBR.max_y);
+						start = System.currentTimeMillis();
+						result = Neo4j_Graph_Store.Execute(resource, query);
+						update_neo4j_time += System.currentTimeMillis() - start;
 						UpdateDeleteEdge_Traverse(start_id);
 					}
 				}
 			}
 		}
-		
-		
-		
 	}
 }

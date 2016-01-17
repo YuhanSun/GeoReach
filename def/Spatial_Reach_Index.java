@@ -109,30 +109,31 @@ public class Spatial_Reach_Index implements ReachabilityQuerySolver{
 			else
 				rs.previous();
 			
-			String query = "match (n) where id(n)="+start_id+" return n";
+//			String query = "match (n) where id(n)="+start_id+" return n";
+//			AccessNodeCount+=1;
+//			Neo4jAccessCount+=1;
+//			
+//			start = System.currentTimeMillis();
+//			String result = Neo4j_Graph_Store.Execute(resource, query);
+//			System.out.println(result);
+//			JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
+//			neo4j_time+=System.currentTimeMillis() - start;
+//			
+//			JsonObject jsonOb = jsonArr.get(0).getAsJsonObject();
+//			jsonArr = jsonOb.get("row").getAsJsonArray();
+//			jsonOb = jsonArr.get(0).getAsJsonObject();
+//			int id = jsonOb.get("id").getAsInt();
+			
+			String query = "match (n:Reachability_Index) where n.id = " + start_id + " return n";
 			AccessNodeCount+=1;
 			Neo4jAccessCount+=1;
 			
 			start = System.currentTimeMillis();
 			String result = Neo4j_Graph_Store.Execute(resource, query);
 			JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
-			neo4j_time+=System.currentTimeMillis() - start;
-			
-			JsonObject jsonOb = jsonArr.get(0).getAsJsonObject();
-			jsonArr = jsonOb.get("row").getAsJsonArray();
-			jsonOb = jsonArr.get(0).getAsJsonObject();
-			int id = jsonOb.get("id").getAsInt();
-			
-			query = "match (n:Reachability_Index) where n.id = " + id + " return n";
-			AccessNodeCount+=1;
-			Neo4jAccessCount+=1;
-			
-			start = System.currentTimeMillis();
-			result = Neo4j_Graph_Store.Execute(resource, query);
-			jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
 			neo4j_time += System.currentTimeMillis() - start;
 			
-			jsonOb = jsonArr.get(0).getAsJsonObject();
+			JsonObject jsonOb = jsonArr.get(0).getAsJsonObject();
 			jsonArr = jsonOb.get("row").getAsJsonArray();
 			jsonOb = jsonArr.get(0).getAsJsonObject();
 			int source_scc_id = jsonOb.get("scc_id").getAsInt();

@@ -255,9 +255,9 @@ public class SpatialIndex implements ReachabilityQuerySolver{
 			con.setAutoCommit(false);
 			st = con.createStatement();
 			//insert data
-			for(int ratio = 20;ratio<100;ratio+=20)
+//			for(int ratio = 20;ratio<100;ratio+=20)
 			
-			//int ratio = 20;
+			int ratio = 20;
 			{
 				System.out.println("load "+datasource+"_Random_" + ratio + suffix);
 				String filename = "/home/yuhansun/Documents/Real_data/"+datasource+"/"+filesuffix+"/" + ratio + "/entity.txt";

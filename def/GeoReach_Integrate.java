@@ -82,7 +82,7 @@ public class GeoReach_Integrate implements ReachabilityQuerySolver
 		RMBR_miny_name = config.GetRMBR_miny_name();
 		RMBR_maxx_name = config.GetRMBR_maxx_name();
 		RMBR_maxy_name = config.GetRMBR_maxy_name();
-		bitmap_name = "Bitmap_"+split_pieces+suffix;
+		
 		
 		total_range = new MyRectangle();
 		total_range.min_x = rect.min_x;
@@ -94,6 +94,8 @@ public class GeoReach_Integrate implements ReachabilityQuerySolver
 		
 		resolution = (total_range.max_x - total_range.min_x)/split_pieces;
 	
+		bitmap_name = "Bitmap_"+split_pieces+suffix;
+		
 		for(int i = 2;i<=split_pieces;i*=2)
 		{
 			multi_resolution.put(i,(total_range.max_x - total_range.min_x)/(i));
@@ -2655,7 +2657,7 @@ public class GeoReach_Integrate implements ReachabilityQuerySolver
 				update_inmemory_time += System.currentTimeMillis() - start;
 				
 				start = System.currentTimeMillis();
-				query = String.format("match (n) where id(n) = %d set n.%s = %s", start_id, bitmap_name, bitmap);
+				query = String.format("match (n) where id(n) = %d set n.%s = \"%s\"", start_id, bitmap_name, bitmap);
 				Neo4j_Graph_Store.Execute(resource, query);
 				update_neo4j_time += System.currentTimeMillis() - start;
 				
@@ -2769,7 +2771,7 @@ public class GeoReach_Integrate implements ReachabilityQuerySolver
 			update_inmemory_time += System.currentTimeMillis() - start;
 			
 			start = System.currentTimeMillis();
-			query = String.format("match (n) where id(n) = %d set n.%s = %s", start_id, bitmap_name, bitmap);
+			query = String.format("match (n) where id(n) = %d set n.%s = '%s'", start_id, bitmap_name, bitmap);
 			Neo4j_Graph_Store.Execute(resource, query);
 			update_neo4j_time+=System.currentTimeMillis()-start;
 			
@@ -2779,5 +2781,241 @@ public class GeoReach_Integrate implements ReachabilityQuerySolver
 			UpdateAddEdgeTraverse(start_id, jArr_start);			
 		}
 		return flag;
+	}
+	
+	//use reconstruct to check whether the union requirement satisfies
+	public boolean CheckGeoReachBitmap(long id)
+	{
+		RoaringBitmap update_bitmap = Reconstruct(id);
+		String query = String.format("match (a) where id(a) = %d return a", id);
+		String result = Neo4j_Graph_Store.Execute(resource, query);
+		JsonArray jarr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
+		JsonObject jobj  = jarr.get(0).getAsJsonObject().get("row").getAsJsonArray().get(0).getAsJsonObject();
+		if(!jobj.has(bitmap_name))
+		{
+			if(update_bitmap.getCardinality() == 0)
+				return true;
+			else
+				return false;
+		}
+		else
+		{
+			if(update_bitmap.getCardinality() == 0)
+				return false;
+			else
+			{
+				ImmutableRoaringBitmap ori_ibitmap = OwnMethods.Deserialize_String_ToRoarBitmap(jobj.get(bitmap_name).getAsString());
+				Iterator<Integer> iter1 = update_bitmap.iterator();
+				Iterator<Integer> iter2 = ori_ibitmap.iterator();
+				while(true)
+				{
+					boolean flag1 = iter1.hasNext();
+					boolean flag2 = iter2.hasNext();
+					if(flag1&&flag2)
+					{
+						if(iter1.next().equals(iter2.next()))
+							continue;
+						else
+							return false;
+					}
+					else
+						if(!(flag1||flag2))
+								return true;
+						else
+							return false;
+				}
+			}
+		}
+	}
+	
+	public RoaringBitmap Reconstruct(long start_id)
+	{
+		String query = null;
+		String result = null;
+		RoaringBitmap update_bitmap = new RoaringBitmap();
+		
+		long start = System.currentTimeMillis();
+		query = String.format("match (a)-->(n) where id(a) = %d return n.%s, n.%s, n.%s", start_id, longitude_property_name, latitude_property_name, bitmap_name);
+		result = Neo4j_Graph_Store.Execute(resource, query);
+		update_neo4j_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
+		JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
+		for(int j_index = 0;j_index<jsonArr.size();j_index++)
+		{
+			JsonArray j_end = jsonArr.get(j_index).getAsJsonObject().get("row").getAsJsonArray();
+			if(!j_end.get(0).isJsonNull())
+			{
+				double lon = j_end.get(0).getAsDouble();
+				double lat = j_end.get(1).getAsDouble();
+				
+				int grid_x = (int) ((lon - total_range.min_x)/resolution);
+				int grid_y = (int) ((lat - total_range.min_y)/resolution);
+				
+				int grid_id = grid_x*split_pieces+grid_y;
+				update_bitmap.add(grid_id);
+			}
+			if(!j_end.get(2).isJsonNull())
+			{
+				String str = j_end.get(2).getAsString();
+				ImmutableRoaringBitmap ib = OwnMethods.Deserialize_String_ToRoarBitmap(str);
+				Iterator<Integer> iter = ib.iterator();
+				while(iter.hasNext())
+					update_bitmap.add(iter.next());
+			}
+		}
+		update_inmemory_time += System.currentTimeMillis() - start;
+		return update_bitmap;
+	}
+	
+	public void UpdateDeleteEdge_Traverse(long end_id)
+	{
+		String query = null;
+		String result = null;
+		
+		long start = System.currentTimeMillis();
+		query = String.format("match (a)-->(b) where id(b) = %d return a.%s, id(a)", end_id, bitmap_name);
+		result = Neo4j_Graph_Store.Execute(resource, query);
+		update_neo4j_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
+		JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
+		
+		for(int j_index = 0;j_index<jsonArr.size();j_index++)
+		{
+			JsonArray j_start = jsonArr.get(j_index).getAsJsonObject().get("row").getAsJsonArray();
+			MyRectangle rect = new MyRectangle(j_start.get(0).getAsDouble(), j_start.get(1).getAsDouble(), j_start.get(2).getAsDouble(), j_start.get(3).getAsDouble());
+			long start_id = j_start.get(1).getAsLong();
+			
+			RoaringBitmap update_bitmap = Reconstruct(start_id);
+			if(update_bitmap.getCardinality() == 0)
+			{
+				if(j_start.get(0).isJsonNull())
+					continue;
+				else
+				{
+					update_inmemory_time += System.currentTimeMillis() - start;
+					
+					start = System.currentTimeMillis();
+					query = String.format("match (n) where id(n) = %d, remove n.%s", start_id, bitmap_name);
+					Neo4j_Graph_Store.Execute(resource, query);
+					update_neo4j_time += System.currentTimeMillis() - start;
+					
+					UpdateDeleteEdge_Traverse(start_id);
+					start = System.currentTimeMillis();
+				}
+			}
+			else
+			{
+				ImmutableRoaringBitmap start_bitmap = OwnMethods.Deserialize_String_ToRoarBitmap(j_start.get(0).getAsString());
+				
+				boolean flag = false;
+				if(start_bitmap.getCardinality()!=update_bitmap.getCardinality())
+					flag = true;
+				else
+				{
+					Iterator<Integer> iter1 = start_bitmap.iterator();
+					Iterator<Integer> iter2 = update_bitmap.iterator();
+					while(iter1.hasNext())
+					{
+						if(iter1.next()!=iter2.next())
+						{
+							flag = true;
+							break;
+						}
+					}
+				}
+				
+				if(flag)
+				{
+					String bitmap = OwnMethods.Serialize_RoarBitmap_ToString(update_bitmap);
+					update_inmemory_time += System.currentTimeMillis() - start;
+					start = System.currentTimeMillis();
+					query = String.format("match (n) where id(n)=%d set n.%s = '%s'", start_id, bitmap_name, bitmap);
+					Neo4j_Graph_Store.Execute(resource, query);
+					update_neo4j_time += System.currentTimeMillis() - start;
+
+					UpdateDeleteEdge_Traverse(start_id);
+					start = System.currentTimeMillis();
+				}
+			}
+		}
+		update_inmemory_time += System.currentTimeMillis() - start;
+	}
+	
+	public void UpdateDeleteEdge(long start_id, long end_id)
+	{
+		String query = null;
+		String result = null;
+		
+		long start = System.currentTimeMillis();
+		query = String.format("match p = (a)-[r]->(b) where id(a) = %d and id(b) = %d delete r", start_id, end_id);
+		Neo4j_Graph_Store.Execute(resource, query);
+		update_deleteedge_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
+		query = String.format("match (n) where id(n) in [%d,%d] return n.%s, n.%s, n.%s", start_id, end_id, longitude_property_name, latitude_property_name, bitmap_name);
+		result = Neo4j_Graph_Store.Execute(resource, query);
+		update_neo4j_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();
+		JsonArray jsonArr = Neo4j_Graph_Store.GetExecuteResultDataASJsonArray(result);
+		
+		JsonArray jArr_start = jsonArr.get(0).getAsJsonObject().get("row").getAsJsonArray();
+		JsonArray jArr_end = jsonArr.get(1).getAsJsonObject().get("row").getAsJsonArray();
+		update_inmemory_time += System.currentTimeMillis() - start;
+		
+		start = System.currentTimeMillis();	
+		if(!jArr_start.get(2).isJsonNull())
+		{
+			boolean flag = false;//a flag to represent whether the start vertex will be influenced by the deletion
+			ImmutableRoaringBitmap start_bitmap = null;
+			RoaringBitmap update_bitmap = null;
+			if(!jArr_end.get(0).isJsonNull()||!jArr_end.get(2).isJsonNull())
+			{
+				start_bitmap = OwnMethods.Deserialize_String_ToRoarBitmap(jArr_start.get(2).getAsString());
+				update_bitmap = Reconstruct(start_id);
+				if(start_bitmap.getCardinality()!=update_bitmap.getCardinality())
+					flag = true;
+				else
+				{
+					Iterator<Integer> iter1 = start_bitmap.iterator();
+					Iterator<Integer> iter2 = update_bitmap.iterator();
+					while(iter1.hasNext())
+					{
+						if(iter1.next()!=iter2.next())
+						{
+							flag = true;
+							break;
+						}
+					}
+				}
+			}
+			
+			update_inmemory_time += System.currentTimeMillis() - start;
+			
+			if(flag)
+			{
+				if(update_bitmap == null)
+				{
+					query = String.format("match (n) where id(n)=%d remove n.%s", start_id, bitmap_name);
+					start = System.currentTimeMillis();
+					result = Neo4j_Graph_Store.Execute(resource, query);
+					update_neo4j_time += System.currentTimeMillis() - start;
+					UpdateDeleteEdge_Traverse(start_id);
+				}
+				else
+				{
+					query = String.format("match (n) where id(n)=%d set n.%s = '%s'", start_id, bitmap_name, OwnMethods.Serialize_RoarBitmap_ToString(update_bitmap));
+					start = System.currentTimeMillis();
+					result = Neo4j_Graph_Store.Execute(resource, query);
+					update_neo4j_time += System.currentTimeMillis() - start;
+					UpdateDeleteEdge_Traverse(start_id);
+				}
+			}
+		}
+		
+		
+		
 	}
 }

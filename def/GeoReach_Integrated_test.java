@@ -94,6 +94,23 @@ public class GeoReach_Integrated_test {
 
 	public static void main(String[] args) {
 		
+		long graph_size = 3774768;
+		long start_id = 11+graph_size;
+		long end_id = 3+graph_size;
+		MyRectangle range = new MyRectangle(0,0,1000,1000);
+		double spatial_total_range = 1000;
+		GeoReach_Integrate p_geo_full =  new GeoReach_Integrate(range, 128);
+//		p_geo_full.UpdateAddEdge(start_id, end_id);
+		for(long i = 0;i<graph_size;i++)
+		{
+			System.out.println(i);
+			boolean result = p_geo_full.CheckGeoReachBitmap(graph_size+i);
+			if(result)
+				continue;
+			else
+				break;
+		}
+		
 //		try
 //		{
 //			MyRectangle rect = new MyRectangle(0,0,1000,1000);
@@ -112,7 +129,7 @@ public class GeoReach_Integrated_test {
 //			e.printStackTrace();
 //		}
 		
-		Experiment();
+//		Experiment();
 		
 //
 //		MyRectangle range = new MyRectangle(0,0,1000,1000);
